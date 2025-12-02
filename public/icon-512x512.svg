@@ -1,0 +1,55 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 그라데이션 -->
+  <rect width="512" height="512" rx="80" fill="url(#backgroundGradient)"/>
+  
+  <!-- 책 모양 (한국어 학습 상징) -->
+  <path d="M128 170 L384 170 L384 340 L128 340 Z" fill="url(#bookGradient)" stroke="white" stroke-width="4"/>
+  <path d="M138 180 L374 180 L374 330 L138 330 Z" fill="white" opacity="0.9"/>
+  
+  <!-- 책 페이지 라인들 -->
+  <line x1="160" y1="210" x2="352" y2="210" stroke="#3B82F6" stroke-width="3" opacity="0.7"/>
+  <line x1="160" y1="230" x2="352" y2="230" stroke="#3B82F6" stroke-width="3" opacity="0.7"/>
+  <line x1="160" y1="250" x2="352" y2="250" stroke="#3B82F6" stroke-width="3" opacity="0.7"/>
+  <line x1="160" y1="270" x2="320" y2="270" stroke="#3B82F6" stroke-width="3" opacity="0.7"/>
+  <line x1="160" y1="290" x2="300" y2="290" stroke="#3B82F6" stroke-width="3" opacity="0.7"/>
+  
+  <!-- 한국어 문자 "한" -->
+  <text x="256" y="380" font-family="Arial, sans-serif" font-size="64" font-weight="bold" text-anchor="middle" fill="white">한</text>
+  
+  <!-- 언어 교환 아이콘 -->
+  <circle cx="374" cy="138" r="32" fill="url(#accentGradient)" stroke="white" stroke-width="3"/>
+  <path d="M360 138 L388 138 M374 124 L374 152" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- 학습 진행 표시 -->
+  <circle cx="138" cy="138" r="20" fill="url(#progressGradient)" stroke="white" stroke-width="3"/>
+  <path d="M128 138 L148 138 M138 128 L138 148" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- 추가 장식 요소 - 작은 별들 -->
+  <circle cx="420" cy="420" r="6" fill="white" opacity="0.6"/>
+  <circle cx="92" cy="420" r="4" fill="white" opacity="0.4"/>
+  <circle cx="420" cy="92" r="5" fill="white" opacity="0.5"/>
+  
+  <!-- 그라데이션 정의 -->
+  <defs>
+    <linearGradient id="backgroundGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E40AF;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="bookGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EF4444;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EA580C;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg> 

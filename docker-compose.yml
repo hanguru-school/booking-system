@@ -1,0 +1,144 @@
+# ========================================
+# MalMoi 한국어 교실 - Docker Compose
+# DXP2800 NAS 서버용 설정
+# ========================================
+
+version: '3.8'
+
+services:
+  # ========================================
+  # MalMoi 애플리케이션
+  # ========================================
+  malmoi-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: malmoi-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://malmoi_admin:malmoi_admin_password_2024@host.docker.internal:5432/malmoi_system
+    volumes:
+      # 로그 볼륨
+      - /mnt/malmoi-storage/logs/app:/app/logs
+      # 업로드 파일 볼륨
+      - /mnt/malmoi-storage/app/uploads:/app/uploads
+      # 정적 파일 볼륨
+      - /mnt/malmoi-storage/app/static:/app/public/static
+    networks:
+      - malmoi-network
+    depends_on:
+      - malmoi-db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ========================================
+  # PostgreSQL 데이터베이스 (로컬)
+  # ========================================
+  malmoi-db:
+    image: postgres:15-alpine
+    container_name: malmoi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: malmoi_system
+      POSTGRES_USER: malmoi_admin
+      POSTGRES_PASSWORD: malmoi_admin_password_2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      # 데이터 볼륨
+      - /mnt/malmoi-storage/database/postgresql:/var/lib/postgresql/data
+      # 백업 볼륨
+      - /mnt/malmoi-storage/database/backups:/backups
+      # 로그 볼륨
+      - /mnt/malmoi-storage/logs/postgresql:/var/log/postgresql
+      # 초기화 스크립트
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - malmoi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U malmoi_admin -d malmoi_system"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ========================================
+  # Redis (캐싱 및 세션 저장)
+  # ========================================
+  malmoi-redis:
+    image: redis:7-alpine
+    container_name: malmoi-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - /mnt/malmoi-storage/database/redis:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - malmoi-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================
+  # Nginx (리버스 프록시 및 로드 밸런서)
+  # ========================================
+  malmoi-nginx:
+    image: nginx:alpine
+    container_name: malmoi-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Nginx 설정
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/sites-available:/etc/nginx/sites-available
+      # SSL 인증서 (Let's Encrypt)
+      - /etc/letsencrypt:/etc/letsencrypt
+      # 로그
+      - /mnt/malmoi-storage/logs/nginx:/var/log/nginx
+      # 정적 파일
+      - /mnt/malmoi-storage/app/static:/var/www/static
+    networks:
+      - malmoi-network
+    depends_on:
+      - malmoi-app
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ========================================
+# 네트워크 설정
+# ========================================
+networks:
+  malmoi-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ========================================
+# 볼륨 설정
+# ========================================
+volumes:
+  malmoi-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/malmoi-storage

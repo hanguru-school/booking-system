@@ -1,0 +1,50 @@
+name: NAS Server Deployment
+
+on:
+  push:
+    branches: [ main, feature/production-system-setup ]
+  workflow_dispatch:
+
+jobs:
+  deploy-to-nas:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Deploy to NAS server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.NAS_HOST }}
+        username: ${{ secrets.NAS_USERNAME }}
+        key: ${{ secrets.NAS_SSH_KEY }}
+        port: ${{ secrets.NAS_PORT }}
+        script: |
+          cd /path/to/booking-system
+          git pull origin main
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run build
+          pm2 restart malmoi-booking-system
+          
+    - name: Notify deployment status
+      if: always()
+      run: |
+        echo "NAS 서버 배포 완료"
+        echo "배포 시간: $(date)"
+        echo "브랜치: ${{ github.ref }}"
+        echo "커밋: ${{ github.sha }}" 

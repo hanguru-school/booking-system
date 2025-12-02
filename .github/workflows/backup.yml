@@ -1,0 +1,110 @@
+name: Backup on Tag
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      BASE_PATH: ${{ secrets.BACKUP_BASE_PATH || './backups' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create backup directories
+        run: |
+          mkdir -p "${{ env.BASE_PATH }}/history"
+          mkdir -p "${{ env.BASE_PATH }}/rolling"
+          mkdir -p "${{ env.BASE_PATH }}/protected"
+
+      - name: Create history backup
+        run: |
+          echo "Creating history backup for ${{ steps.version.outputs.VERSION }}"
+          mkdir -p "${{ env.BASE_PATH }}/history/${{ steps.version.outputs.VERSION }}"
+          git archive --format=tar HEAD | tar -x -C "${{ env.BASE_PATH }}/history/${{ steps.version.outputs.VERSION }}"
+
+      - name: Create rolling backup
+        run: |
+          echo "Creating rolling backup for ${{ steps.version.outputs.VERSION }}"
+          mkdir -p "${{ env.BASE_PATH }}/rolling/${{ steps.version.outputs.VERSION }}"
+          git archive --format=tar HEAD | tar -x -C "${{ env.BASE_PATH }}/rolling/${{ steps.version.outputs.VERSION }}"
+
+      - name: Load protected list
+        id: load_protected
+        run: |
+          if [ -f "protected_backups.json" ]; then
+            PROTECTED=$(jq -r ".[] | select(. == \"${{ steps.version.outputs.VERSION }}\")" protected_backups.json || echo "")
+            echo "PROTECTED=$PROTECTED" >> $GITHUB_OUTPUT
+          else
+            echo "PROTECTED=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create protected backup if marked
+        if: steps.load_protected.outputs.PROTECTED == steps.version.outputs.VERSION
+        run: |
+          echo "Creating protected backup for ${{ steps.version.outputs.VERSION }}"
+          mkdir -p "${{ env.BASE_PATH }}/protected/${{ steps.version.outputs.VERSION }}"
+          git archive --format=tar HEAD | tar -x -C "${{ env.BASE_PATH }}/protected/${{ steps.version.outputs.VERSION }}"
+
+      - name: Prune old rolling backups
+        run: |
+          echo "Pruning old rolling backups..."
+          ROLLING_BACKUPS=$(ls -1 "${{ env.BASE_PATH }}/rolling" 2>/dev/null | sort -V || echo "")
+          ROLLING_COUNT=$(echo "$ROLLING_BACKUPS" | wc -l)
+
+          if [ "$ROLLING_COUNT" -gt 10 ]; then
+            TO_DELETE=$(echo "$ROLLING_BACKUPS" | head -n $((ROLLING_COUNT - 10)))
+            for version in $TO_DELETE; do
+              echo "Deleting old rolling backup: $version"
+              rm -rf "${{ env.BASE_PATH }}/rolling/$version"
+            done
+          else
+            echo "No pruning needed (current count: $ROLLING_COUNT)"
+          fi
+
+      - name: Backup statistics
+        run: |
+          echo "Backup Statistics:"
+          echo "  History backups: $(ls -1 "${{ env.BASE_PATH }}/history" 2>/dev/null | wc -l)"
+          echo "  Rolling backups: $(ls -1 "${{ env.BASE_PATH }}/rolling" 2>/dev/null | wc -l)"
+          echo "  Protected backups: $(ls -1 "${{ env.BASE_PATH }}/protected" 2>/dev/null | wc -l)"
+          echo "  Version: ${{ steps.version.outputs.VERSION }}"
+          if [ "${{ steps.load_protected.outputs.PROTECTED }}" = "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "  Status: Protected"
+          else
+            echo "  Status: Standard"
+          fi
+
+      - name: Upload backup artifacts (optional)
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ steps.version.outputs.VERSION }}
+          path: ${{ env.BASE_PATH }}
+          retention-days: 30
+
+      - name: Notify completion
+        run: |
+          echo "✅ Backup completed successfully for version ${{ steps.version.outputs.VERSION }}"
+          echo "📁 Backup location: ${{ env.BASE_PATH }}"
+          if [ "${{ steps.load_protected.outputs.PROTECTED }}" = "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "🛡️  This version is protected from automatic deletion"
+          fi
