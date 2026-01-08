@@ -16,6 +16,8 @@ Query:
 - to=YYYY-MM-DD (inclusive)
 - teacherId=<uuid>
 
+teacherId is required in MVP. Multi-teacher aggregation is not supported.
+
 Response (MVP):
 {
   "teacherId": "...",
@@ -43,6 +45,7 @@ Response (MVP):
 - SLOT_DURATION_MINUTES = 50 (or 60; choose one constant for MVP)
 - SLOT_STEP_MINUTES = SLOT_DURATION_MINUTES (no half-step in MVP)
 - BOOKING_BLOCKING_STATUSES = [CONFIRMED] (PENDING optional later)
+- slotDurationMinutes must be returned in API responses even if constant, to keep client logic decoupled from server configuration.
 
 ## Input Data Sources
 For each day in [from..to]:
